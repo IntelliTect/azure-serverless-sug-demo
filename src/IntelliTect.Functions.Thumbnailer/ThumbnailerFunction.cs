@@ -16,14 +16,15 @@ namespace IntelliTect.Functions.Thumbnailer
 
         [FunctionName(nameof(Run))]
         public static void Run(
-            [BlobTrigger("large-image-queue/{name}")]
+            [QueueTrigger("thumbnailer-items")]
+            string queueItem,
+            [Blob("large-image-queue/{queueTrigger}", FileAccess.Read)]
             Stream largeImageStream,
-            string name,
-            [Blob("thumbnail-result/{name}", FileAccess.Write)]
+            [Blob("thumbnail-result/{queueTrigger}", FileAccess.Write)]
             Stream imageSmall,
             TraceWriter log)
         {
-            log.Info($"Thumbnailer function received blob\n Name:{name} \n Size: {largeImageStream.Length} Bytes");
+            log.Info($"Thumbnailer function received blob\n Name:{queueItem} \n Size: {largeImageStream.Length} Bytes");
 
 
             using (Image<Rgba32> original = Image.Load(largeImageStream))
@@ -31,13 +32,13 @@ namespace IntelliTect.Functions.Thumbnailer
                 int width, height;
                 if (original.Width > original.Height)
                 {
-                    log.Info($"Limiting width of {name} to {Size} pixels.");
+                    log.Info($"Limiting width of {queueItem} to {Size} pixels.");
                     width = Size;
                     height = original.Height * Size / original.Width;
                 }
                 else
                 {
-                    log.Info($"Limiting height of {name} to {Size} pixels.");
+                    log.Info($"Limiting height of {queueItem} to {Size} pixels.");
                     width = original.Width * Size / original.Height;
                     height = Size;
                 }
@@ -47,7 +48,7 @@ namespace IntelliTect.Functions.Thumbnailer
                 var encoder = new JpegEncoder {Quality = Quality};
 
                 original.SaveAsJpeg(imageSmall, encoder);
-                log.Info($"Thumbnail saved to thumbnail-result/{name} as quality {Quality}");
+                log.Info($"Thumbnail saved to thumbnail-result/{queueItem} as quality {Quality}");
             }
         }
     }
