@@ -1,17 +1,58 @@
 ﻿using System.IO;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
+using SkiaSharp;
 
 namespace IntelliTect.Functions.Thumbnailer
 {
     public static class ThumbnailerFunction
     {
+        private const int Size = 200;
+        private const int Quality = 75;
+
         [FunctionName(nameof(Run))]
-        public static void Run([BlobTrigger("large-image-queue/{name}", Connection =
-                "DefaultEndpointsProtocol=https;AccountName=sugdemostorage;AccountKey=d9zKNkR9toGBpegqLlpZgVJjdJyKdnqt9O7FRGHI6SmPRNlZ6drxzxKYClQYqHOXsixDwN0sjKVPcmJYslBfYw==;EndpointSuffix=core.windows.net")]
-            Stream myBlob, string name, TraceWriter log)
+        public static void Run(
+            [BlobTrigger("large-image-queue/{name}")]
+            Stream largeImageStream,
+
+            string name,
+
+            [Blob("thumbnail-result/{name}", FileAccess.Write)]
+            Stream imageSmall,
+
+            TraceWriter log)
         {
-            log.Info($"C# Blob trigger function Processed blob\n Name:{name} \n Size: {myBlob.Length} Bytes");
+            log.Info($"Thumbnailer function received blob\n Name:{name} \n Size: {largeImageStream.Length} Bytes");
+
+            using (var inputStream = new SKManagedStream(largeImageStream, true))
+            {
+                using (SKBitmap original = SKBitmap.Decode(inputStream))
+                {
+                    int width, height;
+                    if (original.Width > original.Height)
+                    {
+                        log.Info($"Limiting width of {name} to {Size} pixels.");
+                        width = Size;
+                        height = original.Height * Size / original.Width;
+                    }
+                    else
+                    {
+                        log.Info($"Limiting height of {name} to {Size} pixels.");
+                        width = original.Width * Size / original.Height;
+                        height = Size;
+                    }
+
+                    using (SKBitmap resized = original
+                        .Resize(new SKImageInfo(width, height), SKBitmapResizeMethod.Lanczos3))
+                    {
+                        using (SKImage image = SKImage.FromBitmap(resized))
+                        {
+                            image.Encode(SKEncodedImageFormat.Jpeg, Quality).SaveTo(imageSmall);
+                            log.Info($"Thumbnail encoded to thumbnail-result/{name} with quality: {Quality}");
+                        }
+                    }
+                }
+            }
         }
     }
 }
