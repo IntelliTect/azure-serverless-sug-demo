@@ -27,7 +27,7 @@ namespace IntelliTect.Functions.Thumbnailer
             log.Info($"Thumbnailer function received blob\n Name:{queueItem} \n Size: {largeImageStream.Length} Bytes");
 
 
-            using (Image<Rgba32> original = Image.Load(largeImageStream))
+            /*using (Image<Rgba32> original = Image.Load(largeImageStream))
             {
                 int width, height;
                 if (original.Width > original.Height)
@@ -47,9 +47,9 @@ namespace IntelliTect.Functions.Thumbnailer
 
                 var encoder = new JpegEncoder {Quality = Quality};
 
-                original.SaveAsJpeg(imageSmall, encoder);
+                original.SaveAsJpeg(imageSmall, encoder);*/
                 log.Info($"Thumbnail saved to thumbnail-result/{queueItem} as quality {Quality}");
-            }
+            //}
         }
     }
 }
