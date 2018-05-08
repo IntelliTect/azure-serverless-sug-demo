@@ -1,7 +1,11 @@
 ﻿using System.IO;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
-using SkiaSharp;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Transforms;
 
 namespace IntelliTect.Functions.Thumbnailer
 {
@@ -14,44 +18,36 @@ namespace IntelliTect.Functions.Thumbnailer
         public static void Run(
             [BlobTrigger("large-image-queue/{name}")]
             Stream largeImageStream,
-
             string name,
-
             [Blob("thumbnail-result/{name}", FileAccess.Write)]
             Stream imageSmall,
-
             TraceWriter log)
         {
             log.Info($"Thumbnailer function received blob\n Name:{name} \n Size: {largeImageStream.Length} Bytes");
 
-            using (var inputStream = new SKManagedStream(largeImageStream, true))
-            {
-                using (SKBitmap original = SKBitmap.Decode(inputStream))
-                {
-                    int width, height;
-                    if (original.Width > original.Height)
-                    {
-                        log.Info($"Limiting width of {name} to {Size} pixels.");
-                        width = Size;
-                        height = original.Height * Size / original.Width;
-                    }
-                    else
-                    {
-                        log.Info($"Limiting height of {name} to {Size} pixels.");
-                        width = original.Width * Size / original.Height;
-                        height = Size;
-                    }
 
-                    using (SKBitmap resized = original
-                        .Resize(new SKImageInfo(width, height), SKBitmapResizeMethod.Lanczos3))
-                    {
-                        using (SKImage image = SKImage.FromBitmap(resized))
-                        {
-                            image.Encode(SKEncodedImageFormat.Jpeg, Quality).SaveTo(imageSmall);
-                            log.Info($"Thumbnail encoded to thumbnail-result/{name} with quality: {Quality}");
-                        }
-                    }
+            using (Image<Rgba32> original = Image.Load(largeImageStream))
+            {
+                int width, height;
+                if (original.Width > original.Height)
+                {
+                    log.Info($"Limiting width of {name} to {Size} pixels.");
+                    width = Size;
+                    height = original.Height * Size / original.Width;
                 }
+                else
+                {
+                    log.Info($"Limiting height of {name} to {Size} pixels.");
+                    width = original.Width * Size / original.Height;
+                    height = Size;
+                }
+
+                original.Mutate(ctx => ctx.Resize(width, height));
+
+                var encoder = new JpegEncoder {Quality = Quality};
+
+                original.SaveAsJpeg(imageSmall, encoder);
+                log.Info($"Thumbnail saved to thumbnail-result/{name} as quality {Quality}");
             }
         }
     }
