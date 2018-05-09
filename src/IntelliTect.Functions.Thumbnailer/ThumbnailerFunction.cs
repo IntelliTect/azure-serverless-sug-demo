@@ -15,8 +15,10 @@ namespace IntelliTect.Functions.Thumbnailer
             [QueueTrigger("thumbnailer-items")] string queueItem,
             [Blob("large-image-queue/{queueTrigger}", FileAccess.Read)]
             Stream largeImageStream,
+
             [Blob("thumbnail-result/{queueTrigger}", FileAccess.Write)]
             Stream imageSmall,
+
             TraceWriter log)
         {
             log.Info($"Thumbnailer function received blob\n Name:{queueItem} \n Size: {largeImageStream.Length} Bytes");
@@ -30,6 +32,7 @@ namespace IntelliTect.Functions.Thumbnailer
             };
 
             ImageBuilder.Current.Build(largeImageStream, imageSmall, settings);
+            log.Info($"Hello from the SUG meeting item: {queueItem}");
 
             log.Info($"Thumbnail encoded to thumbnail-result/{queueItem} with quality: {Quality}");
         }
